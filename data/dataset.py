@@ -3,6 +3,7 @@ import torch
 from torch.utils.data import Dataset
 import torchaudio
 import random
+from utils.mapping import letter_to_idx
 
 class LetterDataset(Dataset):
     """
@@ -14,7 +15,7 @@ class LetterDataset(Dataset):
         self.processor = processor
         self.augment = augment
         self.samples = []
-        self.label_map = {chr(ord('A')+i): i for i in range(26)}
+        self.label_map = letter_to_idx  # Use centralized mapping
 
         for letter, idx in self.label_map.items():
             letter_dir = os.path.join(root_dir, letter)
@@ -53,10 +54,12 @@ class LetterDataset(Dataset):
         path, label = self.samples[idx]
         waveform, sr = torchaudio.load(path)
 
+        # Apply augmentation if enabled
         if self.augment:
             waveform = self.augment_waveform(waveform)
 
-        spec = self.processor.mel_transform(waveform)  # mel-spectrogram
+        # Use mel_transform directly from processor
+        spec = self.processor.mel_transform(waveform)
         log_mel = torch.log(spec + 1e-8)
         log_mel = (log_mel - log_mel.mean()) / (log_mel.std() + 1e-8)
         log_mel = log_mel.unsqueeze(0)  # (1, n_mels, time)
