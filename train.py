@@ -3,8 +3,8 @@ from torch.utils.data import DataLoader, random_split
 import torch.nn as nn
 
 from models.letter_cnn import LetterCNN
-from data import AudioProcessor, LetterDataset
-from models import LetterCNN
+from data import LetterDataset
+from utils import AudioProcessor, save_model
 
 
 def train_model(model, train_loader, val_loader, epochs=30, lr=0.001):
@@ -43,15 +43,16 @@ def train_model(model, train_loader, val_loader, epochs=30, lr=0.001):
 
         if val_acc > best_acc:
             best_acc = val_acc
-            torch.save(model.state_dict(), "best_letter_model.pth")
+            save_model(model, "best_letter_model.pth")
 
         print(f"Epoch {epoch+1}: Train {train_acc:.1f}%, Val {val_acc:.1f}%")
 
     print(f"Best validation accuracy: {best_acc:.1f}%")
 
+
 if __name__ == "__main__":
     processor = AudioProcessor(n_mels=64)
-    dataset = LetterDataset("dataset_root", processor)
+    dataset = LetterDataset("dataset_root", processor, augment=True)
 
     # Split dataset
     train_size = int(0.8 * len(dataset))
@@ -60,10 +61,11 @@ if __name__ == "__main__":
 
     # Data loaders
     train_loader = DataLoader(train_set, batch_size=16, shuffle=True)
-    val_loader = DataLoader(val_set, batch_size=16)
+    val_loader = DataLoader(val_set, batch_size=16, shuffle=False)
 
     # Model
     model = LetterCNN(n_mels=64, n_classes=26)
+    print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
 
     # Train
     train_model(model, train_loader, val_loader, epochs=30)
