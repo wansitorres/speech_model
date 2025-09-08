@@ -25,11 +25,13 @@ class LetterDataset(Dataset):
                     path = os.path.join(letter_dir, fname)
                     self.samples.append((path, idx))
 
-        # Augmentations (torchaudio)
-        self.speed_perturb = [torchaudio.transforms.Resample(16000, int(16000*0.9)),
-                              torchaudio.transforms.Resample(16000, int(16000*1.1))]
+        # Augmentation transforms
         self.noise_factor = 0.005
         self.pitch_shift = torchaudio.transforms.PitchShift(16000, n_steps=2)
+        self.speed_perturb = [
+            torchaudio.transforms.Resample(16000, int(16000 * 0.9)),
+            torchaudio.transforms.Resample(16000, int(16000 * 1.1))
+        ]
 
     def __len__(self):
         return len(self.samples)
@@ -39,8 +41,7 @@ class LetterDataset(Dataset):
         return waveform + noise
 
     def augment_waveform(self, waveform):
-        # Randomly apply augmentations
-        if random.random() < 0.3:  # 30% chance
+        if random.random() < 0.3:
             waveform = self.add_noise(waveform)
         if random.random() < 0.3:
             waveform = self.pitch_shift(waveform)
@@ -52,14 +53,10 @@ class LetterDataset(Dataset):
         path, label = self.samples[idx]
         waveform, sr = torchaudio.load(path)
 
-        # Data augmentation
         if self.augment:
             waveform = self.augment_waveform(waveform)
 
-        spec = self.processor.process_audio(path) if not self.augment else \
-               self.processor.mel_transform(waveform)  # bypass reloading
-
-        # Convert to log-mel + normalize
+        spec = self.processor.mel_transform(waveform)  # mel-spectrogram
         log_mel = torch.log(spec + 1e-8)
         log_mel = (log_mel - log_mel.mean()) / (log_mel.std() + 1e-8)
         log_mel = log_mel.unsqueeze(0)  # (1, n_mels, time)
